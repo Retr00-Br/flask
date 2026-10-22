@@ -22,6 +22,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def verify_supabase_connection():
+    """Valida se o cliente Supabase está instanciado antes das chamadas."""
+    if supabase is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Conexão com o Supabase não inicializada. Verifique SUPABASE_URL e SUPABASE_KEY no painel da Vercel."
+        )
+
 @app.get("/")
 def read_root():
     return {"status": "online", "message": "API da Operação em execução no Vercel!"}
@@ -32,21 +40,22 @@ def get_pedidos_hoje(data_consulta: Optional[date] = None):
     Retorna a lista de pedidos do dia (ou da data informada).
     Prioriza pedidos marcados como EMERGÊNCIA no topo.
     """
-    target_date = str(data_consulta or date.today())
+    verify_supabase_connection()
+    target_date = (data_consulta or date.today()).isoformat()
     
     try:
         response = (
             supabase.table("pedidos")
             .select("*")
-            .eq("data_pedido", target_date)
+            .gte("data_pedido", f"{target_date}T00:00:00")
+            .lte("data_pedido", f"{target_date}T23:59:59")
             .order("is_emergencia", ascending=False)
             .order("created_at", ascending=False)
             .execute()
         )
         
-        pedidos = response.data
+        pedidos = response.data or []
         
-        # Injeta temporariamente o status do farol como 'VERDE' até definir as janelas
         for p in pedidos:
             p["farol_status"] = "VERDE"
             
@@ -59,6 +68,8 @@ def marcar_emergencia(pedido_id: int, payload: PedidoEmergenciaUpdate):
     """
     Marca/Atualiza a ordem de urgência de um pedido com solicitante e motivo.
     """
+    verify_supabase_connection()
+    
     try:
         data_to_update = {
             "is_emergencia": payload.is_emergencia,
@@ -87,17 +98,19 @@ def get_kpis(data_consulta: Optional[date] = None):
     """
     Gera o resumo das métricas (KPIs) exibidas nos cards no topo do painel.
     """
-    target_date = str(data_consulta or date.today())
+    verify_supabase_connection()
+    target_date = (data_consulta or date.today()).isoformat()
     
     try:
         response = (
             supabase.table("pedidos")
             .select("*")
-            .eq("data_pedido", target_date)
+            .gte("data_pedido", f"{target_date}T00:00:00")
+            .lte("data_pedido", f"{target_date}T23:59:59")
             .execute()
         )
         
-        pedidos = response.data
+        pedidos = response.data or []
         total_pedidos = len(pedidos)
         
         emergencias = [p for p in pedidos if p.get("is_emergencia")]
@@ -112,7 +125,7 @@ def get_kpis(data_consulta: Optional[date] = None):
             "total_pedidos": total_pedidos,
             "total_emergencias": total_emergencias,
             "percentual_emergencias": round(pct_emergencias, 2),
-            "total_fora_sla": 0,  # Será calculado quando as janelas chegarem
+            "total_fora_sla": 0,
             "total_em_producao": total_em_producao
         }
     except Exception as e:
