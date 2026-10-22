@@ -1,4 +1,4 @@
 from app.main import app
 
-# Exportação do objeto 'app' para o runtime ASGI da Vercel
+# A Vercel procura pela variável 'app' no arquivo dentro da pasta api/
 app = app
