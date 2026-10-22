@@ -1,25 +1,6 @@
-# Framework Principal & Servidor Web
 fastapi>=0.110.0
-uvicorn[standard]>=0.28.0
-
-# Validação e Manipulação de Dados (Pydantic v2)
-pydantic>=2.6.0
-pydantic-settings>=2.2.0
-
-# Conexão com Supabase (Cliente Oficial)
+uvicorn>=0.28.0
 supabase>=2.4.0
-
-# ORM & Conexão Direta com PostgreSQL (Opcional se usar SQLAlchemy + Async)
-sqlalchemy>=2.0.28
-asyncpg>=0.29.0
-psycopg2-binary>=2.9.9
-alembic>=1.13.0
-
-# Utilitários, Variáveis de Ambiente & CORS
+pydantic>=2.6.0
 python-dotenv>=1.0.1
 httpx>=0.27.0
-python-multipart>=0.0.9
-
-# Suporte a Análise/Transformação de Dados (Engenharia de Dados)
-pandas>=2.2.0
-openpyxl>=3.1.2

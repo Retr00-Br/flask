@@ -1,0 +1,18 @@
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# Configurações de IDE e Vercel
+.vscode/
+.vercel/
