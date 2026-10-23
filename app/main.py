@@ -3,7 +3,6 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from datetime import date
 from typing import List, Optional
 
@@ -25,10 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Garante o caminho absoluto correto para a pasta templates na Vercel
-BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-
 def verify_supabase_connection():
     if supabase is None:
         raise HTTPException(
@@ -36,18 +31,27 @@ def verify_supabase_connection():
             detail="Conexão com o Supabase não inicializada."
         )
 
-# Rota principal servindo o HTML
+# Rota principal servindo o HTML de forma direta e segura no Serverless
 @app.get("/", response_class=HTMLResponse)
-def read_root(request: Request):
-    try:
-        return templates.TemplateResponse("index.html", {"request": request})
-    except Exception as e:
-        # Se falhar o template por algum motivo, exibe o JSON de fallback sem quebrar a API
-        return {
-            "status": "online",
-            "message": "API em execução, mas o template não foi encontrado.",
-            "error": str(e)
-        }
+def read_root():
+    # Caminho para o ficheiro index.html
+    html_path = Path(__file__).resolve().parent / "templates" / "index.html"
+    
+    if html_path.exists():
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    
+    # Fallback caso o ficheiro não seja empacotado no Serverless
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><title>API Operacional</title></head>
+    <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+        <h1>API de Produção e Logística Online!</h1>
+        <p>Aceda à documentação interativa em <a href="/docs">/docs</a></p>
+    </body>
+    </html>
+    """
 
 @app.get("/api/v1/pedidos/hoje", response_model=List[PedidoResponse])
 def get_pedidos_hoje(data_consulta: Optional[date] = None):
