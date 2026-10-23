@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -24,9 +25,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuração do caminho dos templates
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+# Garante o caminho absoluto correto para a pasta templates na Vercel
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 def verify_supabase_connection():
     if supabase is None:
@@ -35,10 +36,18 @@ def verify_supabase_connection():
             detail="Conexão com o Supabase não inicializada."
         )
 
-# Rota Principal serve a interface WEB
+# Rota principal servindo o HTML
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    try:
+        return templates.TemplateResponse("index.html", {"request": request})
+    except Exception as e:
+        # Se falhar o template por algum motivo, exibe o JSON de fallback sem quebrar a API
+        return {
+            "status": "online",
+            "message": "API em execução, mas o template não foi encontrado.",
+            "error": str(e)
+        }
 
 @app.get("/api/v1/pedidos/hoje", response_model=List[PedidoResponse])
 def get_pedidos_hoje(data_consulta: Optional[date] = None):
