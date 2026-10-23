@@ -32,7 +32,11 @@ def verify_supabase_connection():
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "message": "API da Operação em execução no Vercel!"}
+    return {
+        "status": "online",
+        "message": "API de Produção e Logística em execução na Vercel!",
+        "docs": "/docs"
+    }
 
 @app.get("/api/v1/pedidos/hoje", response_model=List[PedidoResponse])
 def get_pedidos_hoje(data_consulta: Optional[date] = None):
