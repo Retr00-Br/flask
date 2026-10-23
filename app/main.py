@@ -1,5 +1,8 @@
-from fastapi import FastAPI, HTTPException, status
+import os
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from datetime import date
 from typing import List, Optional
 
@@ -13,7 +16,6 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configuração de CORS para permitir requisições do Frontend Vercel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,28 +24,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configuração do caminho dos templates
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
 def verify_supabase_connection():
-    """Valida se o cliente Supabase está instanciado antes das chamadas."""
     if supabase is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Conexão com o Supabase não inicializada. Verifique SUPABASE_URL e SUPABASE_KEY no painel da Vercel."
+            detail="Conexão com o Supabase não inicializada."
         )
 
-@app.get("/")
-def read_root():
-    return {
-        "status": "online",
-        "message": "API de Produção e Logística em execução na Vercel!",
-        "docs": "/docs"
-    }
+# Rota Principal serve a interface WEB
+@app.get("/", response_class=HTMLResponse)
+def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/api/v1/pedidos/hoje", response_model=List[PedidoResponse])
 def get_pedidos_hoje(data_consulta: Optional[date] = None):
-    """
-    Retorna a lista de pedidos do dia (ou da data informada).
-    Prioriza pedidos marcados como EMERGÊNCIA no topo.
-    """
     verify_supabase_connection()
     target_date = (data_consulta or date.today()).isoformat()
     
@@ -59,7 +57,6 @@ def get_pedidos_hoje(data_consulta: Optional[date] = None):
         )
         
         pedidos = response.data or []
-        
         for p in pedidos:
             p["farol_status"] = "VERDE"
             
@@ -69,9 +66,6 @@ def get_pedidos_hoje(data_consulta: Optional[date] = None):
 
 @app.patch("/api/v1/pedidos/{pedido_id}/emergencia", response_model=PedidoResponse)
 def marcar_emergencia(pedido_id: int, payload: PedidoEmergenciaUpdate):
-    """
-    Marca/Atualiza a ordem de urgência de um pedido com solicitante e motivo.
-    """
     verify_supabase_connection()
     
     try:
@@ -99,9 +93,6 @@ def marcar_emergencia(pedido_id: int, payload: PedidoEmergenciaUpdate):
 
 @app.get("/api/v1/dashboard/kpis", response_model=DashboardKPIs)
 def get_kpis(data_consulta: Optional[date] = None):
-    """
-    Gera o resumo das métricas (KPIs) exibidas nos cards no topo do painel.
-    """
     verify_supabase_connection()
     target_date = (data_consulta or date.today()).isoformat()
     

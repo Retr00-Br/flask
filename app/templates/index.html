@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Produção & Logística</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1"><i class="bi bi-box-seam me-2"></i>Acompanhamento de Operação</span>
+            <a href="/docs" target="_blank" class="btn btn-outline-light btn-sm"><i class="bi bi-code-slash me-1"></i>Swagger API</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Cards de KPIs -->
+        <div class="row mb-4" id="kpis-container">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary mb-3">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Total de Pedidos</h6>
+                        <h2 id="kpi-total" class="fw-bold">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-danger mb-3">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Emergências</h6>
+                        <h2 id="kpi-emergencias" class="fw-bold">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-dark bg-warning mb-3">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">% Emergências</h6>
+                        <h2 id="kpi-pct" class="fw-bold">-</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-info mb-3">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Em Produção</h6>
+                        <h2 id="kpi-producao" class="fw-bold">-</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela de Pedidos -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-secondary">Pedidos do Dia</h5>
+                <button onclick="carregarDados()" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Status Urgência</th>
+                                <th>NF</th>
+                                <th>PV</th>
+                                <th>Cliente</th>
+                                <th>Separador</th>
+                                <th>Status Produção</th>
+                                <th>Farol SLA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pedidos-body">
+                            <tr>
+                                <td colspan="7" class="text-center py-4">Carregando pedidos...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function carregarDados() {
+            try {
+                // Busca KPIs
+                const resKPIs = await fetch('/api/v1/dashboard/kpis');
+                const kpis = await resKPIs.json();
+                document.getElementById('kpi-total').innerText = kpis.total_pedidos ?? 0;
+                document.getElementById('kpi-emergencias').innerText = kpis.total_emergencias ?? 0;
+                document.getElementById('kpi-pct').innerText = (kpis.percentual_emergencias ?? 0) + '%';
+                document.getElementById('kpi-producao').innerText = kpis.total_em_producao ?? 0;
+
+                // Busca Pedidos
+                const resPedidos = await fetch('/api/v1/pedidos/hoje');
+                const pedidos = await resPedidos.json();
+                const tbody = document.getElementById('pedidos-body');
+                tbody.innerHTML = '';
+
+                if (!pedidos || pedidos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhum pedido encontrado para hoje.</td></tr>';
+                    return;
+                }
+
+                pedidos.forEach(p => {
+                    const badgeEmergencia = p.is_emergencia 
+                        ? `<span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>EMERGÊNCIA</span>`
+                        : `<span class="badge bg-secondary">NORMAL</span>`;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${badgeEmergencia}</td>
+                            <td>${p.numero_nf ?? '-'}</td>
+                            <td class="fw-bold">${p.numero_pv ?? '-'}</td>
+                            <td>${p.cliente ?? '-'}</td>
+                            <td>${p.separador ?? 'Não atribuído'}</td>
+                            <td><span class="badge bg-light text-dark border">${p.status_producao ?? 'PENDENTE'}</span></td>
+                            <td><span class="badge bg-success">VERDE</span></td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Erro ao carregar dados:", err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarDados);
+    </script>
+</body>
+</html>
